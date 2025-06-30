@@ -1,0 +1,123 @@
+// src/hooks/useFirebaseAuth.js
+import { useState, useEffect } from 'react';
+import FirebaseGoogleAuth from '../services/firebaseGoogleAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const useFirebaseAuth = () => {
+    const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true); // true au début
+    const [isSignedIn, setIsSignedIn] = useState(false);
+    const [error, setError] = useState(null);
+
+    // 🔄 ÉCOUTER CHANGEMENTS AUTH AU DÉMARRAGE
+    useEffect(() => {
+        console.log('🔄 Démarrage listener Firebase Auth...');
+
+        const unsubscribe = FirebaseGoogleAuth.onAuthStateChanged((authResult) => {
+            console.log('🔥 Auth state changed:', authResult.success);
+
+            if (authResult.success && authResult.user) {
+                // ✅ Utilisateur connecté
+                setUser(authResult.user);
+                setIsSignedIn(true);
+
+                // Sauvegarder localement
+                AsyncStorage.setItem('user', JSON.stringify(authResult.user));
+                AsyncStorage.setItem('userId', authResult.user.id);
+            } else {
+                // ❌ Pas d'utilisateur
+                setUser(null);
+                setIsSignedIn(false);
+
+                // Nettoyer cache
+                AsyncStorage.multiRemove(['user', 'userId']);
+            }
+
+            setIsLoading(false);
+        });
+
+        // 🧹 Nettoyer le listener
+        return () => unsubscribe();
+    }, []);
+
+    // 🔐 CONNEXION GOOGLE
+    const signInWithGoogle = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            const result = await FirebaseGoogleAuth.signInWithGoogle();
+
+            if (result.success) {
+                // ✅ Le listener onAuthStateChanged va mettre à jour l'état
+                console.log('✅ Connexion Google réussie');
+                return result;
+            } else {
+                setError(result.error);
+                return result;
+            }
+
+        } catch (error) {
+            const errorMessage = error.message || 'Erreur de connexion';
+            setError(errorMessage);
+            return {
+                success: false,
+                error: errorMessage
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 🚪 DÉCONNEXION
+    const signOut = async () => {
+        try {
+            setIsLoading(true);
+
+            const result = await FirebaseGoogleAuth.signOut();
+
+            if (result.success) {
+                // ✅ Le listener va nettoyer l'état automatiquement
+                console.log('✅ Déconnexion réussie');
+            }
+
+            return result;
+
+        } catch (error) {
+            setError(error.message);
+            return {
+                success: false,
+                error: error.message
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 👤 RÉCUPÉRER UTILISATEUR ACTUEL (sans listener)
+    const getCurrentUser = () => {
+        return FirebaseGoogleAuth.getCurrentUser();
+    };
+
+    // 🧹 NETTOYER ERREUR
+    const clearError = () => {
+        setError(null);
+    };
+
+    return {
+        // 📊 État
+        user,
+        isSignedIn,
+        isLoading,
+        error,
+
+        // 🔧 Actions
+        signInWithGoogle,
+        signOut,
+        getCurrentUser,
+        clearError,
+
+        // 🔍 Utilitaires
+        isAuthenticated: isSignedIn && user !== null,
+    };
+};

@@ -1,0 +1,25 @@
+// src/config/firebase.js
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getAnalytics } from "firebase/analytics";
+
+// 🔥 TA CONFIGURATION FIREBASE (remplace par la tienne)
+const firebaseConfig = {
+    apiKey: "AIzaSyBaJJAvxF3_MFDx3WWVpXRl8Sr5twrJAzk",
+    authDomain: "myaklebalmaapp-d3743.firebaseapp.com",
+    projectId: "myaklebalmaapp-d3743",
+    storageBucket: "myaklebalmaapp-d3743.firebasestorage.app",
+    messagingSenderId: "714694473072",
+    appId: "1:714694473072:web:e84e0da6f8c3af44b90bb5",
+    measurementId: "G-467KTG8WDR"
+};
+
+
+// 🚀 INITIALISER FIREBASE
+const app = initializeApp(firebaseConfig);
+
+// 🔐 INITIALISER AUTH
+export const auth = getAuth(app);
+
+// 📱 EXPORT APP POUR AUTRES SERVICES
+export default app;

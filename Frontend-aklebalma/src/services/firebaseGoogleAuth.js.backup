@@ -1,0 +1,199 @@
+// src/services/firebaseGoogleAuth.js
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import { GoogleAuthProvider, signInWithCredential, signOut } from 'firebase/auth';
+import { auth } from '../config/firebase';
+
+// 🔧 CONFIGURATION POUR EXPO
+WebBrowser.maybeCompleteAuthSession();
+
+class FirebaseGoogleAuth {
+    constructor() {
+        // 🔑 CLIENT ID GOOGLE WEB (depuis Firebase Console)
+        this.clientId = "714694473072-qffprtdc5au1birjkaf7g9qnnh23b8hl.apps.googleusercontent.com";
+
+        // 💡 Pour le trouver : Firebase Console > Project Settings > General > Web App > SDK setup and configuration
+        // Ou dans google-services.json, cherchez le client avec "client_type": 3
+
+        this.redirectUri = AuthSession.makeRedirectUri({
+            useProxy: true, // Important pour Expo Go
+        });
+
+        console.log('🔧 Firebase Google Auth initialisé');
+        console.log('📍 Redirect URI:', this.redirectUri);
+    }
+
+    // 🔐 CONNEXION GOOGLE
+    async signInWithGoogle() {
+        try {
+            console.log('🔄 Début connexion Google Firebase...');
+
+            // 1. VÉRIFIER QUE AUTH EST INITIALISÉ
+            if (!auth) {
+                throw new Error('Firebase Auth non initialisé');
+            }
+
+            // 2. CONFIGURATION GOOGLE AUTH REQUEST
+            const request = new AuthSession.AuthRequest({
+                clientId: this.clientId,
+                scopes: ['openid', 'profile', 'email'],
+                redirectUri: this.redirectUri,
+                responseType: AuthSession.ResponseType.IdToken,
+                additionalParameters: {},
+                extraParams: {
+                    nonce: this.generateNonce(),
+                },
+            });
+
+            console.log('📋 Configuration auth request créée');
+
+            // 3. DÉMARRER LA CONNEXION
+            const result = await request.promptAsync({
+                authorizationEndpoint: 'https://accounts.google.com/oauth/authorize',
+            });
+
+            console.log('📋 Résultat auth:', result.type);
+
+            if (result.type === 'success') {
+                console.log('✅ Authentification Google réussie');
+
+                // 4. RÉCUPÉRER ID TOKEN
+                const { id_token } = result.params;
+
+                if (!id_token) {
+                    throw new Error('Pas d\'ID token reçu de Google');
+                }
+
+                console.log('🎫 ID Token reçu');
+
+                // 5. CRÉER CREDENTIAL FIREBASE
+                const credential = GoogleAuthProvider.credential(id_token);
+                console.log('🔑 Credential Firebase créé');
+
+                // 6. CONNECTER À FIREBASE
+                const firebaseResult = await signInWithCredential(auth, credential);
+                console.log('🔥 Connexion Firebase réussie:', firebaseResult.user.email);
+
+                return {
+                    success: true,
+                    user: this.formatFirebaseUser(firebaseResult.user),
+                    firebaseUser: firebaseResult.user,
+                };
+
+            } else if (result.type === 'cancel') {
+                console.log('❌ Connexion annulée par l\'utilisateur');
+                return {
+                    success: false,
+                    error: 'Connexion annulée',
+                    code: 'CANCELLED'
+                };
+            } else {
+                console.log('❌ Échec authentification:', result);
+                return {
+                    success: false,
+                    error: 'Échec de la connexion Google',
+                    code: 'AUTH_FAILED'
+                };
+            }
+
+        } catch (error) {
+            console.error('❌ Erreur Google Auth:', error);
+
+            // Messages d'erreur plus précis
+            let errorMessage = 'Erreur de connexion Google';
+            if (error.message.includes('not been registered')) {
+                errorMessage = 'Configuration Firebase manquante - contactez le support';
+            } else if (error.message.includes('network')) {
+                errorMessage = 'Problème de connexion internet';
+            } else if (error.message.includes('client_id')) {
+                errorMessage = 'Configuration Google invalide';
+            }
+
+            return {
+                success: false,
+                error: errorMessage,
+                code: 'UNKNOWN_ERROR',
+                details: error.message
+            };
+        }
+    }
+
+    // 🚪 DÉCONNEXION
+    async signOut() {
+        try {
+            await signOut(auth);
+            console.log('✅ Déconnexion Firebase réussie');
+            return { success: true };
+        } catch (error) {
+            console.error('❌ Erreur déconnexion:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    // 👤 UTILISATEUR ACTUEL
+    getCurrentUser() {
+        const user = auth.currentUser;
+        if (user) {
+            return {
+                success: true,
+                user: this.formatFirebaseUser(user)
+            };
+        }
+        return {
+            success: false,
+            error: 'Aucun utilisateur connecté'
+        };
+    }
+
+    // 📊 FORMATER UTILISATEUR FIREBASE
+    formatFirebaseUser(firebaseUser) {
+        return {
+            id: firebaseUser.uid,
+            email: firebaseUser.email,
+            firstName: firebaseUser.displayName?.split(' ')[0] || 'Utilisateur',
+            lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || 'Google',
+            fullName: firebaseUser.displayName || 'Utilisateur Google',
+            photo: firebaseUser.photoURL || null,
+            provider: 'google',
+            emailVerified: firebaseUser.emailVerified,
+            phone: null, // Google ne fournit pas le téléphone
+            role: 'USER',
+            // Données Firebase
+            firebaseUid: firebaseUser.uid,
+        };
+    }
+
+    // 🔢 GÉNÉRER NONCE (sécurité)
+    generateNonce() {
+        const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+        let result = '';
+        for (let i = 0; i < 32; i++) {
+            result += charset[Math.floor(Math.random() * charset.length)];
+        }
+        return result;
+    }
+
+    // 👀 ÉCOUTER CHANGEMENTS D'AUTH
+    onAuthStateChanged(callback) {
+        return auth.onAuthStateChanged((user) => {
+            console.log('🔄 Auth state changed:', user ? user.email : 'No user');
+            if (user) {
+                callback({
+                    success: true,
+                    user: this.formatFirebaseUser(user)
+                });
+            } else {
+                callback({
+                    success: false,
+                    user: null
+                });
+            }
+        });
+    }
+}
+
+// Export singleton
+export default new FirebaseGoogleAuth();
