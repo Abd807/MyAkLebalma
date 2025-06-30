@@ -1,0 +1,31 @@
+🚀 QUELLE PAGE VOULEZ-VOUS ATTAQUER MAINTENANT ?
+Options disponibles :
+
+📱 ProductDetailScreen - Détail d'un produit avec ajout au panier
+🛒 CartScreen - Panier d'achat avec gestion quantités
+👤 ProfileScreen - Profil utilisateur et paramètres
+🔍 SearchScreen - Recherche de produits avancée
+📍 TrackingScreen - Suivi de commande en temps réel
+💳 PaymentScreen - Processus de paiement
+📊 AdminDashboard - Interface d'administration
+🏪 VendorScreen - Interface vendeur
+
+Ou une autre page spécifique que vous avez en tête ?
+Pages manquantes pour tes entités :
+
+CategoryScreen - Liste/navigation par catégories
+AddressScreen - Gestion des adresses de livraison
+AgencyScreen - Liste/sélection des agences
+DocumentScreen - Gestion des documents (factures, etc.)
+NotificationScreen - Centre de notifications
+CreditScoreScreen - Affichage du score de crédit
+PaymentPlanScreen - Détails des plans de paiement
+
+🚀 Quelles pages veux-tu créer en priorité ?
+Je te suggère cet ordre :
+
+NotificationScreen (important pour UX)
+AddressScreen (essentiel pour livraison)
+CategoryScreen (navigation produits)
+CreditScoreScreen (core business)
+
